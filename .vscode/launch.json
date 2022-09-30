@@ -20,6 +20,27 @@
                 "${workspaceRoot}/openocd.cfg"
             ],
             "svdFile": "${workspaceRoot}/.vscode/STM32F411.svd",
+            "preLaunchCommands": [
+                "monitor arm semihosting enable"
+            ]
+        },
+        {
+            /* Configuration for the STM32F303 Discovery board */
+            "type": "cortex-debug",
+            "request": "launch",
+            "name": "Debug (OpenOCD) Release",
+            "servertype": "openocd",
+            "cwd": "${workspaceRoot}",
+            "preLaunchTask": "Cargo Build (release)",
+            "executable": "./target/thumbv7em-none-eabihf/release/stm32f4xx-dma-i2c-example",
+            "device": "STM32F411RET6U",
+            "configFiles": [
+                "${workspaceRoot}/openocd.cfg"
+            ],
+            "svdFile": "${workspaceRoot}/.vscode/STM32F411.svd",
+            "preLaunchCommands": [
+                "monitor arm semihosting enable"
+            ]
         }
     ]
 }
