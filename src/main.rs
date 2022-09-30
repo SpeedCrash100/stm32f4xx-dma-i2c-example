@@ -77,12 +77,6 @@ mod app {
     type MicrosecMono = MonoTimerUs<crate::pac::TIM5>;
 
     /// Init function running on reset
-    ///
-    /// * Configures clocks to 100 MHz
-    /// * Configures PA5(User LED) for tick indication
-    /// * Creates I2C bus, display, temperature sensor, RTC
-    /// * Configures joystick
-    /// * Starts repeating tasks
     #[init(local = [
         _i2c_bus: Option<I2c1HandleProtected> = None
     ])]
@@ -146,6 +140,7 @@ mod app {
         }
     }
 
+    /// Get new temperature from sensor
     #[task(local = [temp_register_address, raw_temperature_buf], shared = [&i2c, &temperature], priority = 3)]
     fn get_temp(ctx: get_temp::Context) {
         // LM75B updates reading every 100 ms
@@ -180,6 +175,7 @@ mod app {
         .unwrap();
     }
 
+    /// Draws current temperature on screen
     #[task(local = [display], shared = [&i2c, &temperature], priority = 1)]
     fn draw(ctx: draw::Context) {
         draw::spawn_after(10.millis()).unwrap();
