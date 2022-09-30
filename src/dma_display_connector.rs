@@ -15,16 +15,6 @@ const I2C_ADDRESS: u8 = 0x3C;
 static COMMAND_SEND: AtomicBool = AtomicBool::new(false);
 static DRAWING: AtomicBool = AtomicBool::new(false);
 
-pub trait I2CWrite {
-    fn write(&mut self, addr: u8, buf: &[u8]) -> nb::Result<(), hal::i2c::Error>;
-}
-
-impl I2CWrite for crate::app::I2c1Handle {
-    fn write(&mut self, addr: u8, buf: &[u8]) -> nb::Result<(), hal::i2c::Error> {
-        crate::app::I2c1Handle::write(self, addr, buf)
-    }
-}
-
 pub struct DMAI2cInterface<I2C: 'static> {
     display_buffer: [u8; DISPLAY_BUFFER_SIZE], // Display 128x64 + 1 byte for DataByte
     command_buffer: [u8; COMMAND_BUFFER_SIZE],
@@ -32,7 +22,7 @@ pub struct DMAI2cInterface<I2C: 'static> {
     i2c: &'static Mutex<RefCell<I2C>>,
 }
 
-impl<I2C: I2CMasterWriteDMA + I2CWrite + 'static> DMAI2cInterface<I2C> {
+impl<I2C: I2CMasterWriteDMA + 'static> DMAI2cInterface<I2C> {
     pub fn new(bus: &'static Mutex<RefCell<I2C>>) -> Self {
         Self {
             display_buffer: [0x40; DISPLAY_BUFFER_SIZE],
@@ -42,7 +32,7 @@ impl<I2C: I2CMasterWriteDMA + I2CWrite + 'static> DMAI2cInterface<I2C> {
     }
 }
 
-impl<I2C: I2CMasterWriteDMA + I2CWrite + 'static> WriteOnlyDataCommand for DMAI2cInterface<I2C> {
+impl<I2C: I2CMasterWriteDMA + 'static> WriteOnlyDataCommand for DMAI2cInterface<I2C> {
     fn send_commands(&mut self, cmd: DataFormat<'_>) -> Result<(), DisplayError> {
         while COMMAND_SEND.load(Ordering::SeqCst) {}
 
