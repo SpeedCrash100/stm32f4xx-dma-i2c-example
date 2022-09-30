@@ -14,7 +14,6 @@
             "servertype": "openocd",
             "cwd": "${workspaceRoot}",
             "preLaunchTask": "Cargo Build (debug)",
-            "runToMain": true,
             "executable": "./target/thumbv7em-none-eabihf/debug/stm32f4xx-dma-i2c-example",
             "device": "STM32F411RET6U",
             "configFiles": [
