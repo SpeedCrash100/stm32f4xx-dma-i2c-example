@@ -28,7 +28,7 @@ mod app {
     // HAL imports
     use hal::dma::*;
     use hal::gpio::*;
-    use hal::i2c::dma::{I2CMasterDma, I2CMasterWriteDMA, I2CMasterWriteReadDMA};
+    use hal::i2c::dma::{I2CMasterDma, I2CMasterWriteReadDMA};
     use hal::pac::{DMA1, I2C1};
     use hal::prelude::*;
     use hal::timer::MonoTimerUs;
@@ -167,11 +167,14 @@ mod app {
                 let mut bus = ctx.shared.i2c.borrow(cs).borrow_mut();
                 // Safe because temp_register_address and raw_temperature_buf will live whole program
 
-                bus.write_read(
-                    addr,
-                    ctx.local.temp_register_address,
-                    ctx.local.raw_temperature_buf,
-                )
+                unsafe {
+                    bus.write_read_dma(
+                        addr,
+                        ctx.local.temp_register_address,
+                        ctx.local.raw_temperature_buf,
+                        None,
+                    )
+                }
             })
         )
         .unwrap();
@@ -179,7 +182,7 @@ mod app {
 
     #[task(local = [display], shared = [&i2c, &temperature], priority = 1)]
     fn draw(ctx: draw::Context) {
-        draw::spawn_after(100.millis()).unwrap();
+        draw::spawn_after(10.millis()).unwrap();
         // init display
         let i2c_bus = ctx.shared.i2c;
         let display = ctx.local.display.get_or_insert_with(|| {
@@ -199,10 +202,10 @@ mod app {
 
         use core::fmt::Write;
         use embedded_graphics::mono_font::ascii::FONT_10X20;
-        use embedded_graphics::mono_font::{MonoTextStyle, MonoTextStyleBuilder};
+        use embedded_graphics::mono_font::MonoTextStyleBuilder;
         use embedded_graphics::pixelcolor::BinaryColor;
         use embedded_graphics::prelude::*;
-        use embedded_graphics::primitives::{PrimitiveStyleBuilder, Sector};
+
         use embedded_graphics::text::{Alignment, Text};
 
         let text_style = MonoTextStyleBuilder::new()

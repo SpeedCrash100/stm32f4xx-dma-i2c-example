@@ -22,7 +22,7 @@ embedded-graphics =  "0.7.1"
 version = "0.13.2"
 features = ["stm32f411", "rtic"]
 git = "https://github.com/SpeedCrash100/stm32f4xx-hal.git"
-branch = "nb-dma-i2c"
+branch = "dma-i2c"
 
 
 # this lets you use `cargo fix`!
