@@ -1,4 +1,7 @@
-use core::cell::RefCell;
+use core::{
+    cell::RefCell,
+    sync::atomic::{AtomicBool, Ordering},
+};
 
 use critical_section::Mutex;
 
@@ -8,6 +11,9 @@ use hal::i2c::dma::I2CMasterWriteDMA;
 const DISPLAY_BUFFER_SIZE: usize = 128 * 64 / 8 + 1; // Display 128x64 + 1 byte for DataByte
 const COMMAND_BUFFER_SIZE: usize = 8;
 const I2C_ADDRESS: u8 = 0x3C;
+
+static COMMAND_SEND: AtomicBool = AtomicBool::new(false);
+static DRAWING: AtomicBool = AtomicBool::new(false);
 
 pub trait I2CWrite {
     fn write(&mut self, addr: u8, buf: &[u8]) -> nb::Result<(), hal::i2c::Error>;
@@ -38,6 +44,8 @@ impl<I2C: I2CMasterWriteDMA + I2CWrite + 'static> DMAI2cInterface<I2C> {
 
 impl<I2C: I2CMasterWriteDMA + I2CWrite + 'static> WriteOnlyDataCommand for DMAI2cInterface<I2C> {
     fn send_commands(&mut self, cmd: DataFormat<'_>) -> Result<(), DisplayError> {
+        while COMMAND_SEND.load(Ordering::SeqCst) {}
+
         match cmd {
             DataFormat::U8(slice) => {
                 self.command_buffer[1..=slice.len()].copy_from_slice(&slice[0..slice.len()]);
@@ -45,12 +53,20 @@ impl<I2C: I2CMasterWriteDMA + I2CWrite + 'static> WriteOnlyDataCommand for DMAI2
                 let res = nb::block!(critical_section::with(|cs| {
                     let mut i2c = self.i2c.borrow(cs).borrow_mut();
 
-                    i2c.write(I2C_ADDRESS, &self.command_buffer[..=slice.len()])
+                    unsafe {
+                        i2c.write_dma(
+                            I2C_ADDRESS,
+                            &self.command_buffer[..=slice.len()],
+                            Some(|_| COMMAND_SEND.store(false, Ordering::SeqCst)),
+                        )
+                    }
                 }));
 
                 if let Err(_) = res {
                     return Err(DisplayError::BusWriteError);
                 }
+
+                COMMAND_SEND.store(true, Ordering::SeqCst);
 
                 Ok(())
             }
@@ -59,6 +75,8 @@ impl<I2C: I2CMasterWriteDMA + I2CWrite + 'static> WriteOnlyDataCommand for DMAI2
     }
 
     fn send_data(&mut self, buf: DataFormat<'_>) -> Result<(), DisplayError> {
+        while DRAWING.load(Ordering::SeqCst) {}
+
         match buf {
             DataFormat::U8(slice) => {
                 self.display_buffer[1..=slice.len()].copy_from_slice(&slice[0..slice.len()]);
@@ -66,13 +84,19 @@ impl<I2C: I2CMasterWriteDMA + I2CWrite + 'static> WriteOnlyDataCommand for DMAI2
                 let res = nb::block!(critical_section::with(|cs| {
                     let mut i2c = self.i2c.borrow(cs).borrow_mut();
                     unsafe {
-                        i2c.write_dma(I2C_ADDRESS, &self.display_buffer[..=slice.len()], None)
+                        i2c.write_dma(
+                            I2C_ADDRESS,
+                            &self.display_buffer[..=slice.len()],
+                            Some(|_| DRAWING.store(false, Ordering::SeqCst)),
+                        )
                     }
                 }));
 
                 if let Err(_) = res {
                     return Err(DisplayError::BusWriteError);
                 }
+
+                DRAWING.store(false, Ordering::SeqCst);
 
                 Ok(())
             }
