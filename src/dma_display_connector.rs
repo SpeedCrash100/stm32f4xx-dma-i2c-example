@@ -40,6 +40,7 @@ impl<I2C: I2CMasterWriteDMA + 'static> WriteOnlyDataCommand for DMAI2cInterface<
             DataFormat::U8(slice) => {
                 self.command_buffer[1..=slice.len()].copy_from_slice(&slice[0..slice.len()]);
 
+                COMMAND_SEND.store(true, Ordering::SeqCst);
                 let res = nb::block!(critical_section::with(|cs| {
                     let mut i2c = self.i2c.borrow(cs).borrow_mut();
 
@@ -56,8 +57,6 @@ impl<I2C: I2CMasterWriteDMA + 'static> WriteOnlyDataCommand for DMAI2cInterface<
                     return Err(DisplayError::BusWriteError);
                 }
 
-                COMMAND_SEND.store(true, Ordering::SeqCst);
-
                 Ok(())
             }
             _ => Err(DisplayError::DataFormatNotImplemented),
@@ -71,6 +70,7 @@ impl<I2C: I2CMasterWriteDMA + 'static> WriteOnlyDataCommand for DMAI2cInterface<
             DataFormat::U8(slice) => {
                 self.display_buffer[1..=slice.len()].copy_from_slice(&slice[0..slice.len()]);
 
+                DRAWING.store(true, Ordering::SeqCst);
                 let res = nb::block!(critical_section::with(|cs| {
                     let mut i2c = self.i2c.borrow(cs).borrow_mut();
                     unsafe {
@@ -85,8 +85,6 @@ impl<I2C: I2CMasterWriteDMA + 'static> WriteOnlyDataCommand for DMAI2cInterface<
                 if let Err(_) = res {
                     return Err(DisplayError::BusWriteError);
                 }
-
-                DRAWING.store(false, Ordering::SeqCst);
 
                 Ok(())
             }
